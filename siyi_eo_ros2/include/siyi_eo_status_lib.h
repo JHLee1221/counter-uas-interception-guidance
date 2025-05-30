@@ -35,8 +35,9 @@ private:
 
   std::atomic<bool> running_;
   std::vector<uchar> buffer;
-  bool thread_started_;
+  std::atomic<bool> thread_started_;
   std::thread publish_thread_;
+  std::mutex mutex_;
 };
 
 #endif // SIYI_EO_STATUS_LIB_H
