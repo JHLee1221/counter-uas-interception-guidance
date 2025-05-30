@@ -1,0 +1,20 @@
+siyi_eo_status_node:
+  ros__parameters:
+    EO_PARAMS:
+      setCaptureNumber: 1
+      
+      # vgaSize: 000
+      # fhdSize: 111
+
+      setImgSize: 000
+      vgaWidth: 640
+      vgaHeight: 480
+      fhdWidth: 1920
+      fhdHeight: 1080
+      setCompQuality: 50
+
+    CUI:
+      pubCbInfo:
+        eoImgRaw: "/cui/siyi_eo_ros2/image_raw"
+        eoImgComp: "cui/siyi_eo_ros2/image_raw/compressed"
+
