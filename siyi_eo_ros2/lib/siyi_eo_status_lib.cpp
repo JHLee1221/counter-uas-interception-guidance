@@ -61,7 +61,7 @@ void SiyiEoStatusLib::MainStatusLoop()
     running_ = true;
     publish_thread_ = std::thread(&SiyiEoStatusLib::PubImageSrc, this);
     thread_started_ = true;
-    RCLCPP_INFO(node_->get_logger(), "✅ Streaming thread started");
+    RCLCPP_INFO(node_->get_logger(), "Streaming thread started");
   }
 }
 
@@ -102,7 +102,7 @@ void SiyiEoStatusLib::PubImageSrc()
       std::lock_guard<std::mutex> lock(mutex_);
       PubCompImgSrc_->publish(comp_msg_);
     }
-    
+
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
@@ -115,7 +115,7 @@ void SiyiEoStatusLib::ShutImageSrc()
     if (publish_thread_.joinable()) 
     {
       publish_thread_.join();
-      RCLCPP_INFO(node_->get_logger(), "✅ Streaming thread stopped");
+      RCLCPP_INFO(node_->get_logger(), "Streaming thread stopped");
     }
   }
 
