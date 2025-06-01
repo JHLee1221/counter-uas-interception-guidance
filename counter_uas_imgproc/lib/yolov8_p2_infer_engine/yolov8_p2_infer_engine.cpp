@@ -5,7 +5,7 @@ using namespace rclcpp;
 using namespace cv;
 using namespace nvinfer1;
 
-YoloV8P2InferEngine::YoloV8P2InferEngine(const ConfigParam& cfg, std::shared_ptr<rclcpp::Node> node)
+YoloV8P2InferEngine::YoloV8P2InferEngine(const ConfigParamDetection& cfg, std::shared_ptr<rclcpp::Node> node)
  : cfgParam_(cfg), node_(node), miscCalc_(cfg, node), miscFunc_(cfg, node)
 {
   // setting the gpu id
@@ -25,21 +25,69 @@ YoloV8P2InferEngine::YoloV8P2InferEngine(const ConfigParam& cfg, std::shared_ptr
   vecRecogDetectRes.clear();
 }
 
+// YoloV8P2InferEngine::~YoloV8P2InferEngine()
+// {
+//   // releasing stream and buffers
+//   cudaStreamDestroy(stream);
+//   CUDA_CHECK(cudaFree(fDeviceBuffers[0]));
+//   CUDA_CHECK(cudaFree(fDeviceBuffers[1]));
+//   CUDA_CHECK(cudaFree(fDecodePtrDevice));
+//   delete[] fDecodePtrHost;
+//   delete[] fOutBufferHost;
+//   cuda_preprocess_destroy();
+
+//   // destroying the engine
+//   delete context;
+//   delete engine;
+//   delete runtime;
+// }
+
 YoloV8P2InferEngine::~YoloV8P2InferEngine()
 {
-  // releasing stream and buffers
-  cudaStreamDestroy(stream);
-  CUDA_CHECK(cudaFree(fDeviceBuffers[0]));
-  CUDA_CHECK(cudaFree(fDeviceBuffers[1]));
-  CUDA_CHECK(cudaFree(fDecodePtrDevice));
-  delete[] fDecodePtrHost;
-  delete[] fOutBufferHost;
-  cuda_preprocess_destroy();
+    //RCLCPP_INFO(node_->get_logger(), "YoloV8P2InferEngine destructor: Releasing resources...");
 
-  // destroying the engine
-  delete context;
-  delete engine;
-  delete runtime;
+    if (stream) {
+        cudaStreamDestroy(stream);
+        stream = nullptr;
+    }
+
+    if (fDeviceBuffers[0]) {
+        CUDA_CHECK(cudaFree(fDeviceBuffers[0]));
+        fDeviceBuffers[0] = nullptr;
+    }
+    if (fDeviceBuffers[1]) {
+        CUDA_CHECK(cudaFree(fDeviceBuffers[1]));
+        fDeviceBuffers[1] = nullptr;
+    }
+    if (fDecodePtrDevice) {
+        CUDA_CHECK(cudaFree(fDecodePtrDevice));
+        fDecodePtrDevice = nullptr;
+    }
+    if (fDecodePtrHost) {
+        delete[] fDecodePtrHost;
+        fDecodePtrHost = nullptr;
+    }
+    if (fOutBufferHost) {
+        delete[] fOutBufferHost;
+        fOutBufferHost = nullptr;
+    }
+
+    cuda_preprocess_destroy();
+
+    if (context) {
+        context->destroy();
+        context = nullptr;
+    }
+    if (engine) {
+        engine->destroy();
+        engine = nullptr;
+    }
+    if (runtime) {
+        runtime->destroy();
+        runtime = nullptr;
+    }
+
+    //RCLCPP_INFO(node_->get_logger(), "YoloV8P2InferEngine destructor: Resources successfully released.");
 }
 
 // calculating the tensorrt engine information

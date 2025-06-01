@@ -37,6 +37,15 @@ find_package(OpenCV 4.7.0 REQUIRED COMPONENTS
     CONFIG
 )
 
+# find_package(OpenCV 4.5 REQUIRED COMPONENTS
+#     opencv_core
+#     opencv_imgproc
+#     opencv_highgui
+#     opencv_videoio
+#     opencv_dnn
+#   CONFIG
+# )
+
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -96,9 +105,9 @@ include_directories(
 )
 
 install(DIRECTORY 
-        #config        
+        config        
         include
-        #launch
+        launch
         lib
         msg
         #scripts
@@ -139,23 +148,23 @@ target_link_libraries(yolo_layer_plugin nvinfer cudart)
 file(GLOB_RECURSE YOLOV8_P2_SRCUS ${PROJECT_SOURCE_DIR}/lib/yolov8_p2_lib/*.cpp ${PROJECT_SOURCE_DIR}/lib/yolov8_p2_lib/*.cu)
 
 # inference node
-# add_executable(kari_yolov8p2_infer_node src/main_kari_rd_yolov8p2_infer_node.cpp
-#   include/kari_rd_yolov8p2_infer_lib.h
-#   lib/kari_rd_yolov8p2_infer_lib.cpp
-#   include/yolov8_p2_infer_engine/yolov8_p2_infer_engine.h
-#   lib/yolov8_p2_infer_engine/yolov8_p2_infer_engine.cpp
-# 	include/misc/misc_calc_lib.h
-# 	lib/misc/misc_calc_lib.cpp
-# 	include/misc/misc_func.h
-# 	lib/misc/misc_func.cpp
-# 	include/misc/colormat.h
-# 	include/config_param.h 
-# 	lib/config_param.cpp 
-# 	include/global_header.h 
-#   ${YOLOV8_P2_SRCUS}
-# )
-# target_link_libraries(kari_yolov8p2_infer_node ${typesupport_target_cpp} ${OpenCV_LIBRARIES} ${OpenCV_LIBS} ${EIGEN_LIBRARIES} ${CUDA_LIBRARIES} nvinfer cudart yolo_layer_plugin)
-# ament_target_dependencies(kari_yolov8p2_infer_node rclcpp sensor_msgs std_msgs geometry_msgs vision_msgs cv_bridge message_filters)
+add_executable(counter_uas_yolov8p2_infer_node src/main_counter_uas_yolov8p2_infer_node.cpp
+  include/counter_uas_yolov8p2_infer_lib.h
+  lib/counter_uas_yolov8p2_infer_lib.cpp
+  include/yolov8_p2_infer_engine/yolov8_p2_infer_engine.h
+  lib/yolov8_p2_infer_engine/yolov8_p2_infer_engine.cpp
+	include/misc/misc_calc_lib.h
+	lib/misc/misc_calc_lib.cpp
+	include/misc/misc_func.h
+	lib/misc/misc_func.cpp
+	include/misc/colormat.h
+	include/config_param_detection.h 
+	lib/config_param_detection.cpp 
+	include/global_header.h 
+  ${YOLOV8_P2_SRCUS}
+)
+target_link_libraries(counter_uas_yolov8p2_infer_node ${typesupport_target_cpp} ${OpenCV_LIBRARIES} ${OpenCV_LIBS} ${EIGEN_LIBRARIES} ${CUDA_LIBRARIES} nvinfer cudart yolo_layer_plugin)
+ament_target_dependencies(counter_uas_yolov8p2_infer_node rclcpp sensor_msgs std_msgs geometry_msgs vision_msgs cv_bridge message_filters)
 
 # #tracking node
 # add_executable(kari_pf_track_node src/main_kari_rd_pf_track_node.cpp
@@ -217,20 +226,20 @@ file(GLOB_RECURSE YOLOV8_P2_SRCUS ${PROJECT_SOURCE_DIR}/lib/yolov8_p2_lib/*.cpp 
 # target_link_libraries(kari_lstm_track_node ${typesupport_target_cpp} ${OpenCV_LIBRARIES} ${OpenCV_LIBS} ${EIGEN_LIBRARIES} ${CUDA_LIBRARIES} nvinfer cudart nvinfer_plugin curand cudnn)
 # ament_target_dependencies(kari_lstm_track_node rclcpp sensor_msgs std_msgs geometry_msgs vision_msgs cv_bridge message_filters)
 
-# install(TARGETS
-#   #kari_rd_infer_raw_test_node
-#   #ros2_test_node
-#   kari_yolov8p2_infer_node
-#   # kari_pf_track_node
-#   # kari_multi_pf_track_node
-#   kari_lstm_track_node
+install(TARGETS
+  #kari_rd_infer_raw_test_node
+  #ros2_test_node
+  counter_uas_yolov8p2_infer_node
+  # kari_pf_track_node
+  # kari_multi_pf_track_node
+  # kari_lstm_track_node
 
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+  DESTINATION lib/${PROJECT_NAME}
+)
 
-# install(PROGRAMS
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+install(PROGRAMS
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

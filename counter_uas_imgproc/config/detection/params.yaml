@@ -1,0 +1,110 @@
+counter_uas_yolov8p2_infer_node:
+  ros__parameters:
+    CUI:
+      frameRate: 30
+      saveResImgDt: 1.0
+      engineFile: "/yolo_trt_engine/yolov8/dronecop9-2.engine"
+      useDebugMode: true
+
+      inferPlayMode:
+        mode: 222 # 111: image, 222: video, 333: topic
+        enableSaveRes: false
+        enableSaveImgVidOnly: false
+        saveFileName: "infer_res_"
+        topic:
+          imgDstTopicName: "/infered_image_dst"
+          compDstTopicName: "/infered_comp_dst" 
+          sourceTopicName: "/camera/image_raw"
+          saveFrameSrcPath: "/yolo_trt_engine/yolov8/infer_topic/frame_src/"
+          saveFrameDstPath: "/yolo_trt_engine/yolov8/infer_topic/frame_dst/img/"
+          saveLabelDstPath: "/yolo_trt_engine/yolov8/infer_topic/frame_dst/yolo_label/" 
+        
+        video:
+          folderPath: "/yolo_trt_engine/yolov8/infer_vids/src/kari_antidrone/"
+          fileName: "test.mp4" #"test_north_uav_trimmed.mp4"
+          imgRawTopicName: "/video/image_raw"
+          saveImgSrcPath: "/yolo_trt_engine/yolov8/infer_vids/frame_src/"
+          saveImgDstPath: "/yolo_trt_engine/yolov8/infer_vids/frame_dst/img/"
+          saveLabelDstPath: "/yolo_trt_engine/yolov8/infer_vids/frame_dst/yolo_label/"
+          saveVidDstPath: "/yolo_trt_engine/yolov8/infer_vids/infer_video_result_"
+        
+        image:
+          srcFolderPath: "/yolo_trt_engine/yolov8/infer_imgs/src/kari_antidrone"
+          dstFolderPath: "/yolo_trt_engine/yolov8/infer_imgs/dst/img/"
+          labelFolderPath: "/yolo_trt_engine/yolov8/infer_imgs/dst/yolo_label/"
+      
+      threshold:
+        nmsThVal: 0.5
+        confVal: 0.5
+    
+    
+    TestPkg:
+      hello_message: "Hello world"
+      frameRate: 30
+      
+    KariImgProc:
+      frameRate: 30
+      saveResImgDt: 1.0
+      engineFile: "/yolo_trt_engine/yolov8/dronecop9-2.engine"
+      useDebugMode: true
+
+      inferPlayMode:
+        mode: 333 # 111: image, 222: video, 333: topic
+        enableSaveRes: false
+        enableSaveImgVidOnly: false
+        saveFileName: "infer_res_"
+        imgDstTopicName: "/infered_image_dst"
+        compDstTopicName: "/infered_comp_dst"   
+        topic:
+          sourceTopicName: "/camera/image_raw"
+          saveFrameSrcPath: "/yolo_trt_engine/yolov8/infer_topic/frame_src/"
+          saveFrameDstPath: "/yolo_trt_engine/yolov8/infer_topic/frame_dst/img/"
+          saveLabelDstPath: "/yolo_trt_engine/yolov8/infer_topic/frame_dst/yolo_label/" 
+        video:
+          folderPath: "/yolo_trt_engine/yolov8/infer_vids/src/kari_antidrone/"
+          fileName: "300m.mp4" #"test_north_uav_trimmed.mp4"
+          imgRawTopicName: "/video/image_raw"
+          saveImgSrcPath: "/yolo_trt_engine/yolov8/infer_vids/frame_src/"
+          saveImgDstPath: "/yolo_trt_engine/yolov8/infer_vids/frame_dst/img/"
+          saveLabelDstPath: "/yolo_trt_engine/yolov8/infer_vids/frame_dst/yolo_label/"
+          saveVidDstPath: "/yolo_trt_engine/yolov8/infer_vids/infer_video_result_"
+        image:
+          srcFolderPath: "/yolo_trt_engine/yolov8/infer_imgs/src/kari_antidrone"
+          dstFolderPath: "/yolo_trt_engine/yolov8/infer_imgs/dst/img/"
+          labelFolderPath: "/yolo_trt_engine/yolov8/infer_imgs/dst/yolo_label/"
+      
+      threshold:
+        nmsThVal: 0.55
+        confVal: 0.20
+        euclideDistance: 50.0 #euclide distance threshold
+        # fEuclideDistance
+
+
+      trackPlayMode:
+        numParticle: 50
+        maxMissingTime: 5.0
+        kf_vx: 1.0 # kalman filter velocity x
+        kf_vy: 1.0 # kalman filter velocity y
+        mes_std: 100.0 # measurement standard deviation
+        pre_std: 0.3 # prediction standard deviation
+        Q_noise: 0.05 # kalman filter process noise
+        boundary_x: 100.0 # boundary for particle filter x
+        boundary_y: 100.0 # boundary for particle filter y
+        increase_noise: 30.0 # increase noise for particle filter
+
+        LSTMFile: "/yolo_trt_engine/yolov8/lstm_model_fp16.engine"  ## LSTM model directory
+        historySize: 30                                             ## LSTM model frame sequence size
+        minScaler: -1.0                                             ## LSTM model normalize
+        maxScaler: 1.0                                              ## LSTM model normalize
+        predFaith: 0.01                                             ## LSTM model level of predcition faith
+        detFaith: 0.99                                              ## LSTM model level of detection faith
+
+        enableSaveRes: false
+        enableSaveImgVidOnly: false
+        saveFilePath: "/home/jhlee/yolo_trt_engine/yolov8/track_save/"
+        saveFileName: "track_res_"
+        imgDstTopicName: "/tracked_image_dst"
+        detectionArrayTopicName: "/tracked_vismsg_array"
+        compDstTopicName: "/tracked_comp_dst"
+
+

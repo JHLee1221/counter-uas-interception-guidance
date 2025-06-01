@@ -4,7 +4,7 @@ using namespace std;
 using namespace rclcpp;
 using namespace cv;
 
-MiscCalc::MiscCalc(const ConfigParam& cfg, std::shared_ptr<rclcpp::Node> node)
+MiscCalc::MiscCalc(const ConfigParamDetection& cfg, std::shared_ptr<rclcpp::Node> node)
  : cfgParam_(cfg), node_(node)
 {
   // initializing variables

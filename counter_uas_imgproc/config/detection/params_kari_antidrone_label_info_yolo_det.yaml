@@ -1,0 +1,44 @@
+counter_uas_yolov8p2_infer_node:
+  ros__parameters:
+    LabelKariAntiDroneDB:
+      drone:
+        name: "drone"
+        order: 0
+        color: "lime"
+      bird:
+        name: "bird"
+        order: 1
+        color: "olive"      
+      djiPhantom:
+        name: "dji_phantom"
+        order: 2
+        color: "blue"
+      djiMavick:
+        name: "dji_mavic"
+        order: 3
+        color: "cyan"
+      djiM600:
+        name: "dji_m600"
+        order: 4
+        color: "green"
+      djiMatrice:
+        name: "dji_matrice"
+        order: 5
+        color: "yellow"
+      djiInspire:
+        name: "dji_inspire"
+        order: 6
+        color: "magneta"
+      arDrone:
+        name: "ar_drone"
+        order: 7
+        color: "purple"    
+      djiAgras:
+        name: "dji_agras"
+        order: 8
+        color: "navy"
+      background:
+        name: "bg"
+        order: 9
+        color: "black"
+

@@ -2,7 +2,7 @@
 #define YOLOV5_TRT_INFER_MISC_CALC_LIB_H
 
 #include "global_header.h"
-#include "config_param.h"
+#include "config_param_detection.h"
 
 using namespace std;
 using namespace rclcpp;
@@ -11,7 +11,7 @@ using namespace cv;
 class MiscCalc
 {
 public:
-  MiscCalc(const ConfigParam& cfg, std::shared_ptr<rclcpp::Node> node);
+  MiscCalc(const ConfigParamDetection& cfg, std::shared_ptr<rclcpp::Node> node);
   ~MiscCalc();
 
   bool GetSizeCalcFlag();
@@ -29,7 +29,7 @@ public:
   bool bVidStatus;
 
 private:
-  ConfigParam cfgParam_;
+  ConfigParamDetection cfgParam_;
   ColorStatus colorStat_;
   std::shared_ptr<rclcpp::Node> node_;
 };

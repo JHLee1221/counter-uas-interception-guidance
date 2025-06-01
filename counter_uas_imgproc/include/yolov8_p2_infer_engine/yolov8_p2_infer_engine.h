@@ -2,7 +2,7 @@
 #define KARI_DRONECOP_RD_IMGPROC_YOLOV8_P2_INFER_ENGINE_H
 
 #include "global_header.h"
-#include "config_param.h"
+#include "config_param_detection.h"
 #include "misc_calc_lib.h"
 #include "misc_func.h"
 
@@ -24,7 +24,7 @@ public:
 class YoloV8P2InferEngine
 {
 public:
-  YoloV8P2InferEngine(const ConfigParam& cfg, std::shared_ptr<rclcpp::Node> node);
+  YoloV8P2InferEngine(const ConfigParamDetection& cfg, std::shared_ptr<rclcpp::Node> node);
   ~YoloV8P2InferEngine();
 
   void PrepareBuffer(ICudaEngine* engine);
@@ -49,7 +49,7 @@ public:
   double dHz;
 
 private:
-  ConfigParam cfgParam_;
+  ConfigParamDetection cfgParam_;
   MiscCalc miscCalc_;
   MiscFunction miscFunc_;
   CustomLogger gLogger_;
