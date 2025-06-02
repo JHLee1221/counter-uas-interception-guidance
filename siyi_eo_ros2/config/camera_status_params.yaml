@@ -1,12 +1,12 @@
 siyi_eo_status_node:
   ros__parameters:
     EO_PARAMS:
-      setCaptureNumber: 1
+      setCaptureNumber: 4
       
       # vgaSize: 000
       # fhdSize: 111
 
-      setImgSize: 000
+      setImgSize: 111
       vgaWidth: 640
       vgaHeight: 480
       fhdWidth: 1920

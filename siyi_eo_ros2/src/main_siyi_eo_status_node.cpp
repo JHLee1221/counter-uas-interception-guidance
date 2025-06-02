@@ -23,12 +23,12 @@ void SigIntHandler([[maybe_unused]] int param)
 
 int main(int argc, char** argv)
 {
-  // Set up ROS.
+  // Set up ROS2
   init(argc, argv);
   
   node = make_shared<rclcpp::Node>("siyi_eo_status_node");
 
-  // reading ros2 params
+  // Reading ros2 params
   ConfigParam cfg(node);
   if (!cfg.GetRosParams())
   {
@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 
   //siyiEoStatus.~SiyiEoStatusLib();
   siyiEoStatus.ShutImageSrc();
-  node.reset();
   rclcpp::shutdown();
+  node.reset();
   return 0;
 }
