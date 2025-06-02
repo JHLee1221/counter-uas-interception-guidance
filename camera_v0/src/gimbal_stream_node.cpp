@@ -36,7 +36,7 @@ private:
     void stream_video()
     {
         // 비디오 장치 오픈
-        cv::VideoCapture cap("/dev/video2");
+        cv::VideoCapture cap(4);
         if (!cap.isOpened()) {
             RCLCPP_ERROR(this->get_logger(), "❌ Gimbal Camera Video Stream Failed");
             return;
@@ -67,11 +67,11 @@ private:
             img_msg = img_bridge.toImageMsg();
             image_pub_->publish(*img_msg);
 
-            cv::imshow("Gimbal Camera Stream", frame);
-            if (cv::waitKey(1) == 27) {  // ESC 키 누르면 종료
-                running_ = false;
-                break;
-            }
+            // cv::imshow("Gimbal Camera Stream", frame);
+            // if (cv::waitKey(1) == 27) {  // ESC 키 누르면 종료
+            //     running_ = false;
+            //     break;
+            // }
         }
 
         cap.release();

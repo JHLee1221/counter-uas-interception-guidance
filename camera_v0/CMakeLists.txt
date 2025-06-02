@@ -19,11 +19,11 @@ find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # 메인 노드
-add_executable(siyi_a8mini src/siyi_a8mini.cpp)
-target_include_directories(siyi_a8mini PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_compile_features(siyi_a8mini PUBLIC c_std_99 cxx_std_17)
+# add_executable(siyi_a8mini src/siyi_a8mini.cpp)
+# target_include_directories(siyi_a8mini PUBLIC
+#   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#   $<INSTALL_INTERFACE:include>)
+# target_compile_features(siyi_a8mini PUBLIC c_std_99 cxx_std_17)
 
 # 짐벌 제어 노드
 add_executable(gimbal_control_node src/gimbal_control_node.cpp)
@@ -49,13 +49,13 @@ ament_target_dependencies(gimbal_stream_node
 
 # 실행 파일 설치
 install(TARGETS
-  siyi_a8mini
+  # siyi_a8mini
   gimbal_control_node
   gimbal_stream_node
   DESTINATION lib/${PROJECT_NAME})
 
-# 헤더 및 include 파일 설치
-install(DIRECTORY include/ DESTINATION include)
+# # 헤더 및 include 파일 설치
+# install(DIRECTORY include/ DESTINATION include)
 
 # launch 파일 생성
 install(
@@ -63,10 +63,10 @@ install(
   DESTINATION share/${PROJECT_NAME}/
 )
 
-# yaml파일 설치
-install(DIRECTORY config
-  DESTINATION share/${PROJECT_NAME}/
-)
+# # yaml파일 설치
+# install(DIRECTORY config
+#   DESTINATION share/${PROJECT_NAME}/
+# )
 
 # 테스트 (옵션)
 if(BUILD_TESTING)
