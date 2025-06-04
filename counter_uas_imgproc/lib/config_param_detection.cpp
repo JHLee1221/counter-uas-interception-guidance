@@ -5,6 +5,10 @@ using namespace rclcpp;
 
 ConfigParamDetection::ConfigParamDetection(shared_ptr<rclcpp::Node> node)
   : node_(node)
+  , nVgaWidth(0)
+  , nVgaHeight(0)
+  , nFhdWidth(0)
+  , nFhdHeight(0)
   , nFrameRate(0)
   , nPlayMode(0)
   , bUseSaveInfo(false)
@@ -39,7 +43,7 @@ bool ConfigParamDetection::ReadRosParams()
     // generation information
     strHomeName_ = getenv("HOME");
 
-    // reading ros2 param via yaml file, general option
+    // Reading ros2 param via yaml file, general options
     ReadRosParam(node_, "CUI.frameRate", nFrameRate);
     ReadRosParam(node_, "CUI.saveResImgDt", dSaveResImgDt);
     ReadRosParam(node_, "CUI.engineFile", strFileNameDetecionEngine);
