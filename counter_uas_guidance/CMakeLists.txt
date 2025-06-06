@@ -16,6 +16,69 @@ find_package(std_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 
+# using eigen3
+find_package(PkgConfig)
+pkg_search_module(Eigen3 REQUIRED eigen3)
+include_directories(${EIGEN3_INCLUDE_DIR})
+add_definitions(${EIGEN3_DEFINITIONS})
+
+if(NOT EIGEN3_FOUND)
+    # Fallback to cmake_modules
+    find_package(cmake_modules REQUIRED)
+    find_package(Eigen REQUIRED)
+    set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+    set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
+    # Possibly map additional variables to the EIGEN3_ prefix.
+else()
+    set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+endif()
+
+include_directories(
+  ${PROJECT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+  include
+  include/yaw_rate_ctrl
+  lib
+  lib/yaw_rate_ctrl
+  src
+  ${BOOST_INCLUDE_DIRS}
+)
+
+install(DIRECTORY 
+        config        
+        include
+        launch
+        lib
+        src
+        DESTINATION share/${PROJECT_NAME}
+)
+
+install(FILES
+  DESTINATION share/${PROJECT_NAME}
+)
+
+add_executable(counter_uas_offboard_ctrl_node src/main_counter_uas_offboard_ctrl_node.cpp
+  include/global_header.h
+  include/config_param_offboard_ctrl.h
+  include/counter_uas_offboard_ctrl_lib.h
+  include/yaw_rate_ctrl/yaw_rate_ctrl.h
+  lib/config_param_offboard_ctrl.cpp
+  lib/counter_uas_offboard_ctrl_lib.cpp
+  lib/yaw_rate_ctrl/yaw_rate_ctrl.cpp
+)
+target_link_libraries(counter_uas_offboard_ctrl_node ${typesupport_target_cpp} ${EIGEN3_LIBRARIES})
+ament_target_dependencies(counter_uas_offboard_ctrl_node rclcpp rclpy geometry_msgs sensor_msgs vision_msgs std_msgs mavros_msgs nav_msgs Eigen3)
+
+install(TARGETS
+  counter_uas_offboard_ctrl_node
+
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

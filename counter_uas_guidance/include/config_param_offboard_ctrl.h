@@ -1,5 +1,5 @@
-#ifndef CONFIG_PARAM_GUIDANCE_YAW_CTRL_H
-#define CONFIG_PARAM_GUIDANCE_YAW_CTRL_H
+#ifndef CONFIG_PARAM_GUIDANCE_OFFBOARD_CTRL_H
+#define CONFIG_PARAM_GUIDANCE_OFFBOARD_CTRL_H
 
 #include "global_header.h"
 
@@ -18,7 +18,7 @@ public:
   }
 };
 
-class ConfigParamYawCtrl
+class ConfigParamOffboardCtrl
 {
 private:
   std::shared_ptr<rclcpp::Node> node_;
@@ -31,8 +31,8 @@ private:
   void ReadRosParam(std::shared_ptr<rclcpp::Node>& node, const std::string& key, std::string& val);
 
 public:
-  explicit ConfigParamYawCtrl(std::shared_ptr<rclcpp::Node> node);
-  ~ConfigParamYawCtrl();
+  explicit ConfigParamOffboardCtrl(std::shared_ptr<rclcpp::Node> node);
+  ~ConfigParamOffboardCtrl();
 
   bool GetRosParams();
 
@@ -40,18 +40,18 @@ public:
   std::string GenLocalTimeStringFacet();
 
   int nFrameRate;
-  float fYawErr;
-  float fYawErrI;
-  float fYawErrD;
-  float fPrevYawErr;
-  float fRawYawRate;
-  float fFltYawRate;
-  float fmaxSpeed;
-  float fKp;
-  float fKi;
-  float fKd;
-  float fAdpGain;
-  bool bGuidanceMode;
+  double dmaxSpeed;
+  double dKp;
+  double dKi;
+  double dKd;
+  double dAdpGain;
+  double dAlpha;
+  double dYawAngLmt;
+  double dYawRateLmt;
+  double dMaxYawRate;
+  double dTakeoffAlt;
+  double dKpAlt;
+  double dAltVelLmt;
 
   std::string strUasStaTpNmSrc;   // mavros state
   std::string strUasOdomTpNmSrc;  // uas odom
@@ -59,7 +59,7 @@ public:
   std::string strMntAngTpNmSrc;   // mount angle
   std::string strUasSetPtTpNmDst; // Offboard
   std::string strUasArmSrvNmSrc;  // Offboard
-  std::string strUasStMdSrcNmSrc; // Offboard
+  std::string strUasStMdSrvNmSrc; // Offboard
 };
 
-#endif // CONFIG_PARAM_GUIDANCE_YAW_CTRL_H
+#endif // CONFIG_PARAM_GUIDANCE_OFFBOARD_CTRL_H

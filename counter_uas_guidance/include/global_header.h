@@ -1,6 +1,10 @@
 #ifndef COUNTER_UAS_GUIDANCE_GLOBAL_HEADER_H
 #define COUNTER_UAS_GUIDANCE_GLOBAL_HEADER_H
 
+#define PI 3.141592
+#define R2D 180.0 / PI
+#define D2R PI / 180.0
+
 // using vector type data
 #include <iostream>
 #include <fstream>
@@ -65,6 +69,3 @@
 // for using navigation messages
 #include <nav_msgs/msg/odometry.hpp>
 
-#define PI 3.141592
-#define R2D 180.0 / PI
-#define D2R PI / 180.0
