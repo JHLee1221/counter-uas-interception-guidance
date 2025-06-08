@@ -10,12 +10,10 @@ public:
   ~CounterUASGuidanceYawRateCtrl();
 
   double dUpdateYawRate(double dUasYawAng, double dLosYawAng);
-  
   double dGetLastYawErr() const;
-
-private:
-
   static double dWrapToPi(double dAngle);
+
+private:  
   double dt_;
   double dYawErr_;
   double dYawErrI_;

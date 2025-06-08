@@ -21,7 +21,7 @@ using namespace rclcpp;
 ConfigParamOffboardCtrl::ConfigParamOffboardCtrl(shared_ptr<rclcpp::Node> node)
   : node_(node) 
   , nFrameRate(0)
-  , dmxSpeed(0.0)
+  , dmaxSpeed(0.0)
   , dKp(0.0)
   , dKi(0.0)
   , dKd(0.0)
@@ -73,6 +73,7 @@ bool ConfigParamOffboardCtrl::ReadRosParams()
     ReadRosParam(node_, "CUI.offboard.topic.tgtOdom", strTgtOdomTpNmSrc);
     ReadRosParam(node_, "CUI.offboard.topic.mountAng", strMntAngTpNmSrc);
     ReadRosParam(node_, "CUI.offboard.topic.uasSetPt", strUasSetPtTpNmDst);
+    ReadRosParam(node_, "CUI.offboard.topic.gimbalMode", strUasGimbalMdDst);
 
     // Reading ros2 param via yaml file, service options
     ReadRosParam(node_, "CUI.offboard.service.arming", strUasArmSrvNmSrc);

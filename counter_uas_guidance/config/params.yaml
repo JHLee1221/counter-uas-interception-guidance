@@ -4,34 +4,36 @@ counter_uas_offboard_ctrl_node:
       offboard:
         frameRate: 30
         maxSpeed: 10.0
-        maxYawRate: 2.5
+        maxYawRate: 2.0
         altVelLmt: 0.8
 
         takeoff:
           altitude: 10.0
           kpGain: 1.0
-      
-      yawCtrl:
-        gain:
-          Kp: 0.85
-          Ki: 0.01
-          Kd: 0.3
-          adaptive: 1.0
 
-        filter:
-          alpha: 0.2
-        
-        limits:
-          yawAngle: 2.0
-          yawRate: 2.5
-        
         topic:
           uasState: "mavros/uas_1/state"
           uasOdom: "mavros/uas_1/local_position/odom"
           tgtOdom: "/target_odometry"
           mountAng: "/mavros/uas_1/mount_control/command"
           uasSetPt: "mavros/uas_1/setpoint_raw/local"
+          gimbalMode: "/cui/gimbal/mode"
         
         service:
           arming: "mavros/uas_1/cmd/arming"
           setMode: "mavros/uas_1/set_mode"
+
+      yawCtrl:
+        gain:
+          Kp: 0.6  
+          Ki: 0.02   
+          Kd: 0.1   
+          adaptive: 0.8
+
+        filter:
+          alpha: 0.2
+        
+        limits:
+          yawAngle: 3.0
+          yawRate: 2.0
+        

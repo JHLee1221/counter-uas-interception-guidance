@@ -2,10 +2,12 @@
 
 using namespace std;
 using namespace rclcpp;
+using counter_uas_guidance::msg::GimbalMode;
 
-CounterUasOffboardCtrlLib::CounterUasOffboardCtrlLib(const ConfigParamOffboardCtrl& cfg, shared_ptr<rclcpp::Node> node_)
+CounterUasOffboardCtrlLib::CounterUasOffboardCtrlLib(const ConfigParamOffboardCtrl& cfg, shared_ptr<rclcpp::Node> node)
   : cfgParam_(cfg)
   , node_(node)
+  , phase_(GuidancePhase::INIT)
   , bOffboardMode_(false)
   , bArmState_(false)
   , bTakeoffState_(false)
@@ -52,6 +54,13 @@ CounterUasOffboardCtrlLib::CounterUasOffboardCtrlLib(const ConfigParamOffboardCt
   pubPosTgt_ = node_->create_publisher<mavros_msgs::msg::PositionTarget>(
     cfgParam_.strUasSetPtTpNmDst, QoS(10));
   
+  RCLCPP_INFO(node_->get_logger(), "Publisher(counter-uas's gimbal mode): %s", cfgParam_.strUasGimbalMdDst.c_str());
+  pubGimbalMd_ = node_->create_publisher<counter_uas_guidance::msg::GimbalMode>(
+    cfgParam_.strUasGimbalMdDst, QoS(10));
+
+  RCLCPP_INFO(node_->get_logger(), "Create counter uas offboard ctrl timer");
+  timer_ = node_->create_wall_timer(chrono::milliseconds(cfgParam_.nFrameRate), bind(&CounterUasOffboardCtrlLib::MainGuidanceLoop, this));
+
   // Generating counter-uas arm service client
   RCLCPP_INFO(node_->get_logger(), "Client(counter-uas arm service): %s", cfgParam_.strUasArmSrvNmSrc.c_str());
   cliArm_ = node_->create_client<mavros_msgs::srv::CommandBool>(
@@ -63,6 +72,7 @@ CounterUasOffboardCtrlLib::CounterUasOffboardCtrlLib(const ConfigParamOffboardCt
     cfgParam_.strUasStMdSrvNmSrc);
   
   WaitForServices();
+
   lastReq_ = node_->now();
 
   yawRateCtrl_ = make_unique<CounterUASGuidanceYawRateCtrl>(
@@ -73,12 +83,6 @@ CounterUasOffboardCtrlLib::CounterUasOffboardCtrlLib(const ConfigParamOffboardCt
   dMaxYawRate_ = cfgParam_.dMaxYawRate;
   dKpAlt_ = cfgParam_.dKpAlt;
 
-  bOffboardMode_ = false;
-  bArmState_ = false;
-  bTakeoffState_ = false;
-  bHasUasOdomResCallback_ = false;
-  bHasTgtOdomResCallback_ = false;
-  bHasMountAngResCallback_ = false;
 }
 
 CounterUasOffboardCtrlLib::~CounterUasOffboardCtrlLib()
@@ -100,28 +104,51 @@ void CounterUasOffboardCtrlLib::WaitForServices()
 void CounterUasOffboardCtrlLib::CbUasState(const mavros_msgs::msg::State::SharedPtr msgState)
 {
   currentState_ = *msgState;
+  RCLCPP_INFO_ONCE(node_->get_logger(), "CbUasState: Received FCU state update. Mode: %s, Armed: %d",
+                   currentState_.mode.c_str(), currentState_.armed);
 }
+
 
 void CounterUasOffboardCtrlLib::CbUasOdom(const nav_msgs::msg::Odometry::SharedPtr msgOdom)
 {
-  if (msgOdom->pose.empty())
+  if (std::isnan(msgOdom->pose.pose.position.x))
   {
     RCLCPP_WARN(node_->get_logger(), "CbUasOdom: No counter uas odometry data received.");
     bHasUasOdomResCallback_ = false; // No new data
     return;
   }
 
-  vecUasPos_ << msgOdom->pose.pose.position.x, msgOdom->pose.pose.position.y, msgOdom->pose.pose.position.z;
-  quatUasOri_ = Eigen::Quaterniond(
-    msgOdom->pose.pose.orientation.w,
-    msgOdom->pose.pose.orientation.x,
-    msgOdom->pose.pose.orientation.y,
-    msgOdom->pose.pose.orientation.z);
+  const auto& pos = msgOdom->pose.pose.position;
+  vecUasPos_ << pos.y, pos.x, -pos.z;  // NED: (North, East, Down)
+  
+  const auto& q = msgOdom->pose.pose.orientation;
 
-  if (!vecUasPos_.empty())
+  convertQuaternionToEuler(q.x, q.y, q.z, q.w, dRoll, dPitch, dYaw);
+  
+  // ENU 
+  dRollRadENU_ = dRoll;
+  dPitchRadENU_ = dPitch;
+  dYawRadENU_ = dYaw;
+
+  // ENU to NED
+  dYawRadNED_ = -dYawRadENU_;
+  dPitchRadNED_ = -dPitchRadENU_;
+  dRollRadNED_ = dRollRadENU_;
+
+  // NED rad to NED deg
+  dRollDegNED_ = dRollRadNED_ * R2D;
+  dPitchDegNED_ = dPitchRadNED_ * R2D;
+  dYawDegNED_ = dYawRadNED_ * R2D;
+
+
+  RCLCPP_INFO(node_->get_logger(),
+    "Drone Attitude | Roll: %.2f deg | Pitch: %.2f deg | Yaw: %.2f deg",
+    dRollDegNED_, dPitchDegNED_, dYawDegNED_);
+
+  if (!vecUasPos_.isZero())
   {
     bHasUasOdomResCallback_ = true; // New data received
-    RCLCPP_INFO(node_->get_logger(), "CbUasOdom: Received counter uas odometry data.");
+    RCLCPP_INFO_ONCE(node_->get_logger(), "CbUasOdom: Received counter uas odometry data.");
   }
   else
   {
@@ -132,19 +159,20 @@ void CounterUasOffboardCtrlLib::CbUasOdom(const nav_msgs::msg::Odometry::SharedP
 
 void CounterUasOffboardCtrlLib::CbTgtOdom(const nav_msgs::msg::Odometry::SharedPtr msgOdom)
 {
-  if (msgOdom->pose.empty())
+  if (std::isnan(msgOdom->pose.pose.position.x))
   {
     RCLCPP_WARN(node_->get_logger(), "CbTgtOdom: No target odometry data received.");
     bHasTgtOdomResCallback_ = false; // No new data
     return;
   }
 
-  vecTgtPos_ << msgOdom->pose.pose.position.x, msgOdom->pose.pose.position.y, msgOdom->pose.pose.position.z;
-
-  if (!vecTgtPos_.empty())
+  const auto& pos = msgOdom->pose.pose.position;
+  vecTgtPos_ << pos.x, -pos.y, -pos.z;  // NED: (North, East, Down)
+  
+  if (!vecTgtPos_.isZero())
   {
     bHasTgtOdomResCallback_ = true; // New data received
-    RCLCPP_INFO(node_->get_logger(), "CbTgtOdom: Received target odometry data.");
+    RCLCPP_INFO_ONCE(node_->get_logger(), "CbTgtOdom: Received target odometry data.");
   }
   else
   {
@@ -155,7 +183,7 @@ void CounterUasOffboardCtrlLib::CbTgtOdom(const nav_msgs::msg::Odometry::SharedP
 
 void CounterUasOffboardCtrlLib::CbMountAng(const mavros_msgs::msg::MountControl::SharedPtr msgMountAng)
 {
-  if (msgMountAng->yaw.empty())
+  if (std::isnan(msgMountAng->yaw))
   {
     RCLCPP_WARN(node_->get_logger(), "CbMountAng: No mount angle data received.");
     bHasMountAngResCallback_ = false; // No new data
@@ -166,100 +194,164 @@ void CounterUasOffboardCtrlLib::CbMountAng(const mavros_msgs::msg::MountControl:
   if (dMountYawAng_ != 0.0)
   {
     bHasMountAngResCallback_ = true; // New data received
-    RCLCPP_INFO(node_->get_logger(), "CbMountAng: Received mount angle data.");
+    RCLCPP_INFO_ONCE(node_->get_logger(), "CbMountAng: Received mount angle data.");
   }
   else
   {
     bHasMountAngResCallback_ = false; // No new data
     RCLCPP_WARN(node_->get_logger(), "CbMountAng: No valid mount angle data after processing.");
   }
-  // RCLCPP_INFO(node_->get_logger(), "CbMountAng: Received mount angle data: %f", dMountYawAng_ * R2D);
 }
 
-void CounterUasOffboardCtrlLib::LaunchGuidance()
+void CounterUasOffboardCtrlLib::PubGimbalMode(uint8_t state)
 {
-  // Check the current mode and arm status of counter-uas
-  if (currentState_.mode != "OFFBOARD" && (node_->now() - lastReq_).seconds() > 5.0) 
-  {
-    auto req = make_shared<mavros_msgs::srv::SetMode::Request>();
-    req->custom_mode = "OFFBOARD";
-    cliSetMode_->async_send_request(req);
-    lastReq_ = node_->now();
-  } 
-  else if (!currentState_.armed && (node_->now() - lastReq_).seconds() > 5.0) 
-  {
-    auto req = make_shared<mavros_msgs::srv::CommandBool::Request>();
-    req->value = true;
-    cliArm_->async_send_request(req);
-    lastReq_ = node_->now();
-  }
+  counter_uas_guidance::msg::GimbalMode msg;
+  msg.header.stamp = rclcpp::Clock().now();
+  msg.state = state;
+  RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 10000,
+                      "Current Gimbal Mode: %d", msg.state);
+  pubGimbalMd_->publish(msg);
+}
 
-  if (currentState_.mode == "OFFBOARD" && currentState_.armed) {
-      bOffboardMode_ = true;
-      bArmState_ = true;
-  }
+void CounterUasOffboardCtrlLib::MsgMavrosPositionTgt(mavros_msgs::msg::PositionTarget& msg)
+{
+  msg.type_mask = 
+    mavros_msgs::msg::PositionTarget::IGNORE_PX |
+    mavros_msgs::msg::PositionTarget::IGNORE_PY |
+    mavros_msgs::msg::PositionTarget::IGNORE_PZ |
+    mavros_msgs::msg::PositionTarget::IGNORE_AFX |
+    mavros_msgs::msg::PositionTarget::IGNORE_AFY |
+    mavros_msgs::msg::PositionTarget::IGNORE_AFZ |
+    mavros_msgs::msg::PositionTarget::IGNORE_YAW;
+}
 
-  vecLosVec_ = vecTgtPos_ - vecUasPos_;
-  if (vecLosVec_.norm() < 1e-3)
-  {
-    RCLCPP_WARN(node_->get_logger(), "Los vector norm is too small, skipping control...");
-    return;
-  }
+void CounterUasOffboardCtrlLib::PubKeepAliveSetPt()
+{
+  mavros_msgs::msg::PositionTarget keepAliveMsg;
+  keepAliveMsg.header.stamp = node_->now();
+  keepAliveMsg.coordinate_frame = mavros_msgs::msg::PositionTarget::FRAME_LOCAL_NED;
 
-  Eigen::Vector3d euler = quatUasOri_.toRotationMatrix().eulerAngles(0, 1, 2);
-  
-  dUasYawAng_ = euler.z();
-  dLosYawAng_ = atan2(vecLosVec_.y(), vecLosVec_.x());
+  MsgMavrosPositionTgt(keepAliveMsg);
 
-  dYawRate_ = yawRateCtrl_->dUpdateYawRate(dUasYawAng_, dLosYawAng_);
-  dYawRate_ = std::clamp(dYawRate_, -dMaxYawRate_, dMaxYawRate_);
+  keepAliveMsg.velocity.x = 0.0;
+  keepAliveMsg.velocity.y = 0.0;
+  keepAliveMsg.velocity.z = 0.0;
+  keepAliveMsg.yaw_rate = 0.0;
+  pubPosTgt_->publish(keepAliveMsg);
+}
 
-  dYawErr_ = yawRateCtrl_->dGetLastYawErr();
-  
-  // dCuiVelX_ = 
-  // dCuiVelY_ = 
-  dCuiVelZ_ = std::clamp(dKpAlt_ * (dTakeoffAlt_ - vecUasPos_.z()), -1 * cfgParam_.dAltVelLmt, cfgParam_.dAltVelLmt);
+void CounterUasOffboardCtrlLib::ReqOffboardMode()
+{
+  RCLCPP_INFO_ONCE(node_->get_logger(), "Sending OFFBOARD mode request...");
+  auto req = std::make_shared<mavros_msgs::srv::SetMode::Request>();
+  req->custom_mode = "OFFBOARD";
+
+  cliSetMode_->async_send_request(req,
+    [this](rclcpp::Client<mavros_msgs::srv::SetMode>::SharedFuture future)
+    {
+      auto res = future.get();
+      if (res->mode_sent)
+        RCLCPP_INFO_ONCE(node_->get_logger(), "OFFBOARD mode accepted.");
+      else
+        RCLCPP_ERROR(node_->get_logger(), "OFFBOARD mode rejected.");
+    });
+
+  lastReq_ = node_->now();
+}
+
+void CounterUasOffboardCtrlLib::ReqArming()
+{
+  RCLCPP_INFO_ONCE(node_->get_logger(), "Sending ARM request...");
+  auto req = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
+  req->value = true;
+
+  cliArm_->async_send_request(req,
+    [this](rclcpp::Client<mavros_msgs::srv::CommandBool>::SharedFuture future)
+    {
+      auto res = future.get();
+      if (res->success)
+        RCLCPP_INFO_ONCE(node_->get_logger(), "Drone armed.");
+      else
+        RCLCPP_ERROR(node_->get_logger(), "Drone arming failed.");
+    });
+
+  lastReq_ = node_->now();
+}
+
+void CounterUasOffboardCtrlLib::CmdTakeoff()
+{
+  dCuiVelZ_ = std::clamp(dKpAlt_ * (dTakeoffAlt_ + vecUasPos_.z()), -1 * cfgParam_.dAltVelLmt, cfgParam_.dAltVelLmt);
 
   mavros_msgs::msg::PositionTarget posTgtMsg;
   posTgtMsg.header.stamp = node_->now();
   posTgtMsg.header.frame_id = "counter_uas_offboard_ctrl";
   posTgtMsg.coordinate_frame = mavros_msgs::msg::PositionTarget::FRAME_LOCAL_NED;
-  posTgtMsg.type_mask = mavros_msgs::msg::PositionTarget::IGNORE_PX |
-                        mavros_msgs::msg::PositionTarget::IGNORE_PY |
-                        mavros_msgs::msg::PositionTarget::IGNORE_PZ |
-                        mavros_msgs::msg::PositionTarget::IGNORE_AFX |
-                        mavros_msgs::msg::PositionTarget::IGNORE_AFY |
-                        mavros_msgs::msg::PositionTarget::IGNORE_AFZ |
-                        mavros_msgs::msg::PositionTarget::IGNORE_YAW;
-  
-  if (bOffboardMode_ && bArmState_ && !bTakeoffState)
-  {
-    posTgtMsg.velocity.x = 0.0; // dCuiVelX_;
-    posTgtMsg.velocity.y = 0.0; // dCuiVelY_;
-    posTgtMsg.velocity.z = dCuiVelZ_;
-    posTgtMsg.yaw_rate = 0.0;
-    pubPosTgt_->publish(posTgtMsg);
-    bTakeoffState_ = true; // Takeoff state is set to true after publishing the position target
-  }
-  else if (bTakeoffState_ && bHasTgtOdomResCallback_)
-  {
-    posTgtMsg.velocity.x = 1.0; // dCuiVelX_;
-    posTgtMsg.velocity.y = 1.0; // dCuiVelY_;
-    posTgtMsg.velocity.z = dCuiVelZ_;
-    posTgtMsg.yaw_rate = dYawRate_;
-    pubPosTgt_->publish(posTgtMsg);
-  }
-  else
-  {
-    RCLCPP_WARN(node_->get_logger(), "Counter-uas is not in OFFBOARD mode or not armed, skipping control...");
-    return; // Skip control if not in OFFBOARD mode or not armed
-  }
 
-  RCLCPP_INFO(node_->get_logger(), "Published PositionTarget: Vel(%f, %f, %f), YawRate(%f)",
-              dCuiVelX_, dCuiVelY_, dCuiVelZ_, dYawRate_, dYawErr_);
+  MsgMavrosPositionTgt(posTgtMsg);
+
+  posTgtMsg.velocity.x = 0.0;
+  posTgtMsg.velocity.y = 0.0;
+  posTgtMsg.velocity.z = dCuiVelZ_;
+  posTgtMsg.yaw_rate = 0.0;
+  pubPosTgt_->publish(posTgtMsg);
+  PubGimbalMode(GimbalMode::SEARCH);
+  RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 10000,
+                       "[DEBUG] Current altitude: %.2f", vecUasPos_.z());
 }
 
-void CounterUasOffboardCtrlLib::MainOffboardLoop()
+void CounterUasOffboardCtrlLib::CmdBoostPhase()
+{
+  vecLosVec_ = vecTgtPos_ - vecUasPos_;
+
+  RCLCPP_INFO(node_->get_logger(),
+    "\n[LOS Vector Calculation Debug]"
+    "\n  ▷ UAS Pos   : (X: %.2f, Y: %.2f, Z: %.2f)"
+    "\n  ▷ TGT Pos   : (X: %.2f, Y: %.2f, Z: %.2f)"
+    "\n  ▷ LOS Vec   : (X: %.2f, Y: %.2f, Z: %.2f)",
+    vecUasPos_.x(), vecUasPos_.y(), vecUasPos_.z(),
+    vecTgtPos_.x(), vecTgtPos_.y(), vecTgtPos_.z(),
+    vecLosVec_.x(), vecLosVec_.y(), vecLosVec_.z());
+    
+  if (vecLosVec_.norm() < 1e-3)
+  {
+    RCLCPP_WARN(node_->get_logger(), "Los vector norm too small.");
+    return;
+  }
+
+  dUasYawAng_ = dYawRadNED_;
+
+  dLosYawAng_ = atan2(vecLosVec_.y(), vecLosVec_.x());
+  dYawRate_ = yawRateCtrl_->dUpdateYawRate(dUasYawAng_, dLosYawAng_);
+  dYawErr_ = yawRateCtrl_->dGetLastYawErr();
+    
+  dCuiVelZ_ = std::clamp(dKpAlt_ * (dTakeoffAlt_ + vecUasPos_.z()), -1 * cfgParam_.dAltVelLmt, cfgParam_.dAltVelLmt);
+  // dCuiVelZ_ = std::clamp(dKpAlt_ * (vecTgtPos_.z() - vecUasPos_.z()), -1 * cfgParam_.dAltVelLmt, cfgParam_.dAltVelLmt);
+
+
+  mavros_msgs::msg::PositionTarget posTgtMsg;
+  posTgtMsg.header.stamp = node_->now();
+  posTgtMsg.header.frame_id = "counter_uas_offboard_ctrl";
+  posTgtMsg.coordinate_frame = mavros_msgs::msg::PositionTarget::FRAME_LOCAL_NED;
+
+  MsgMavrosPositionTgt(posTgtMsg);
+
+  posTgtMsg.velocity.x = 0.0;
+  posTgtMsg.velocity.y = 0.0;
+  posTgtMsg.velocity.z = dCuiVelZ_;
+  posTgtMsg.yaw_rate = -dYawRate_;
+  pubPosTgt_->publish(posTgtMsg);
+  PubGimbalMode(GimbalMode::ALIGN);
+
+  RCLCPP_INFO(node_->get_logger(),
+              "Yaw Debug | UAS Yaw: %.2f deg | LOS Yaw: %.2f deg | YawErr: %.2f deg | YawRate: %.2f deg/s | GimbalAng: %2.f deg",
+              dUasYawAng_ * R2D,
+              dLosYawAng_ * R2D,
+              dYawErr_ * R2D,
+              dYawRate_ * R2D,
+              dMountYawAng_ * R2D);
+}
+
+void CounterUasOffboardCtrlLib::MainGuidanceLoop()
 {
   if (!bHasUasOdomResCallback_)
   {
@@ -269,30 +361,67 @@ void CounterUasOffboardCtrlLib::MainOffboardLoop()
     return;
   }
 
-  if (!bHasMountAngResCallback_)
+  // 상태 로그 출력
+  RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 10000, 
+                      "Mode: [%s], Armed: [%d]", 
+                      currentState_.mode.c_str(), currentState_.armed);
+
+  // 1. 지속적 keep-alive setpoint 발행
+  PubKeepAliveSetPt();
+
+  // 2. OFFBOARD 모드 요청 (최초 또는 주기적 재시도)
+  if (currentState_.mode != "OFFBOARD" && (node_->now() - lastReq_).seconds() > 5.0)
   {
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 10000,
-                          "Waiting for mount angle data, bHasMountAngResCallback_: %d",
-                          (int)(bHasMountAngResCallback_));
+    ReqOffboardMode();
     return;
   }
 
-  if (!bOffboardMode_)
+  // 3. Arm 요청 (OFFBOARD 진입 후만)
+  if (currentState_.mode == "OFFBOARD" && !currentState_.armed && (node_->now() - lastReq_).seconds() > 5.0)
   {
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 10000,
-                          "Counter-uas is not in OFFBOARD mode, bOffboardMode_: %d",
-                          (int)(bOffboardMode_));
+    ReqArming();
     return;
   }
 
-  if (!bArmState_)
+  // 4. 진입 성공 플래그 업데이트
+  if (currentState_.mode == "OFFBOARD" && currentState_.armed) 
   {
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 10000,
-                          "Counter-uas is not armed, bArmState_: %d",
-                          (int)(bArmState_));
-    return;
+    bOffboardMode_ = true;
+    bArmState_ = true;
   }
 
-  LaunchGuidance();
-  RCLCPP_INFO(node_->get_logger(), "Counter-uas offboard control loop executed successfully.");
+  switch (phase_)
+  {
+    case GuidancePhase::INIT:
+      if (bOffboardMode_ && bArmState_)
+      {
+        phase_ = GuidancePhase::TAKEOFF;
+      }
+      break;
+    
+    case GuidancePhase::TAKEOFF:
+      CmdTakeoff();
+      if (abs(vecUasPos_.z() + dTakeoffAlt_) < 0.5)
+      {
+        phase_ = GuidancePhase::BOOST;
+      }
+      break;
+    
+    case GuidancePhase::BOOST:
+      if (bHasTgtOdomResCallback_ && bHasMountAngResCallback_) 
+      {
+        CmdBoostPhase();
+      }
+      break;
+  }
+}
+
+void CounterUasOffboardCtrlLib::convertQuaternionToEuler(double qx, double qy, double qz, double qw,
+                                                        double& roll, double& pitch, double& yaw)
+{
+  // 1. tf2 Quaternion 생성
+  tf2::Quaternion q(qx, qy, qz, qw);
+
+  // 2. Matrix3x3으로 오일러 각 추출
+  tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);  // RPY 순서: Roll(X), Pitch(Y), Yaw(Z)
 }

@@ -1,4 +1,4 @@
-#include "counter_uas_offboard_ctrl.h"
+#include "counter_uas_offboard_ctrl_lib.h"
 
 using namespace std;
 using namespace rclcpp;
@@ -29,7 +29,7 @@ void SigIntHandler([[maybe_unused]] int param)
 
   //Reading ROS2 params
   ConfigParamOffboardCtrl cfg(node);
-  if (!cfg.readParams())
+  if (!cfg.GetRosParams())
   {
     RCLCPP_ERROR(node->get_logger(), "Wrong params!! Please check the parameter sheet..");
     shutdown();
@@ -37,7 +37,7 @@ void SigIntHandler([[maybe_unused]] int param)
   }
   else
   {
-    RCLCPP_INFO(node->get_logger(), "Pass:readParams()..");
+    RCLCPP_INFO(node->get_logger(), "Pass:GetRosParams()..");
   }
 
   // Setting main function class
@@ -45,27 +45,7 @@ void SigIntHandler([[maybe_unused]] int param)
   CounterUasOffboardCtrlLib counterUasOffboardCtrl(cfg, node);
   signal(SIGINT, SigIntHandler);
 
-  // Setting main function loop rate
-  Rate loopRate(cfg.nFrameRate);
-
-  // Main loop
-  while (ok())
-  {
-    try
-    {
-      // Main loop function
-      counterUasOffboardCtrl.MainOffboardLoop();
-
-      // Loop rate setting and pub/sub spin
-      spin_some(node);
-    }
-    catch(const std::exception& e)
-    {
-      //RCLCPP_ERROR(node->get_logger(), "Exception in main loop: %s", e.what());
-      return -1;
-    }
-    loopRate.sleep();
-  }
+  spin(node);
 
   shutdown();
   node.reset(); // Reset node to free resources

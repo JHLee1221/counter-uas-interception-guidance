@@ -66,6 +66,12 @@
 #include <mavros_msgs/srv/set_mode.hpp>
 #include <mavros_msgs/msg/mount_control.hpp>
 
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+
 // for using navigation messages
 #include <nav_msgs/msg/odometry.hpp>
 
+#include "counter_uas_guidance/msg/gimbal_mode.hpp"
+
+#endif  // COUNTER_UAS_GUIDANCE_GLOBAL_HEADER_H

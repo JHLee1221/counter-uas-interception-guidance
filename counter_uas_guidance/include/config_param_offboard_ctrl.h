@@ -58,6 +58,7 @@ public:
   std::string strTgtOdomTpNmSrc;  // target odom
   std::string strMntAngTpNmSrc;   // mount angle
   std::string strUasSetPtTpNmDst; // Offboard
+  std::string strUasGimbalMdDst; 
   std::string strUasArmSrvNmSrc;  // Offboard
   std::string strUasStMdSrvNmSrc; // Offboard
 };

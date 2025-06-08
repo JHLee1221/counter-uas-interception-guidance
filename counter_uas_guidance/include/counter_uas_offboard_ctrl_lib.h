@@ -5,6 +5,13 @@
 #include "config_param_offboard_ctrl.h"
 #include "yaw_rate_ctrl.h"
 
+enum class GuidancePhase
+{
+  INIT,
+  TAKEOFF,
+  BOOST,
+};
+
 class CounterUasOffboardCtrlLib
 {
 public:
@@ -16,9 +23,8 @@ public:
 private:
   ConfigParamOffboardCtrl cfgParam_;
   std::shared_ptr<rclcpp::Node> node_;
-
+  GuidancePhase phase_;
   std::unique_ptr<CounterUASGuidanceYawRateCtrl> yawRateCtrl_;
-
   mavros_msgs::msg::State currentState_;
 
   // Counter uas state
@@ -52,21 +58,46 @@ private:
   double dCuiVelX_;
   double dCuiVelY_;
   double dCuiVelZ_;
+  double dRoll;
+  double dPitch;
+  double dYaw;
+  double dRollRadENU_;
+  double dPitchRadENU_;
+  double dYawRadENU_;
+  double dRollRadNED_;
+  double dPitchRadNED_;
+  double dYawRadNED_;
+  double dRollDegNED_;
+  double dPitchDegNED_;
+  double dYawDegNED_;
 
   void WaitForServices();
   void CbUasState(const mavros_msgs::msg::State::SharedPtr msgState);
   void CbUasOdom(const nav_msgs::msg::Odometry::SharedPtr msgOdom);
   void CbTgtOdom(const nav_msgs::msg::Odometry::SharedPtr msgOdom);
   void CbMountAng(const mavros_msgs::msg::MountControl::SharedPtr msgMountAng);
-  void LaunchGuidance();
+  void PubGimbalMode(uint8_t state);
+  void MsgMavrosPositionTgt(mavros_msgs::msg::PositionTarget& msg);
+  void PubKeepAliveSetPt();
+  void ReqOffboardMode();
+  void ReqArming();
+  void CmdTakeoff();
+  void CmdBoostPhase();
+  void MainGuidanceLoop();
+  void LaunchControlLoop();
+
+  void convertQuaternionToEuler(double qx, double qy, double qz, double qw,
+                               double& roll, double& pitch, double& yaw);
 
   rclcpp::Subscription<mavros_msgs::msg::State>::SharedPtr subUasState_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subUasOdom_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subTgtOdom_;
   rclcpp::Subscription<mavros_msgs::msg::MountControl>::SharedPtr subMountAng_;
   rclcpp::Publisher<mavros_msgs::msg::PositionTarget>::SharedPtr pubPosTgt_;
+  rclcpp::Publisher<counter_uas_guidance::msg::GimbalMode>::SharedPtr pubGimbalMd_;
   rclcpp::Client<mavros_msgs::srv::CommandBool>::SharedPtr cliArm_;
   rclcpp::Client<mavros_msgs::srv::SetMode>::SharedPtr cliSetMode_;
+  rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Time lastReq_;
 
 };
